@@ -116,7 +116,13 @@ namespace Hypertable {
     HiResTime expiration_time() { ScopedLock lock(m_mutex); return m_expiration_time; }
 
     virtual bool remove_explicitly() { return false; }
-    virtual int remove_approvals_required() { return 0; }
+    virtual int32_t remove_approval_mask() { return 0; }
+    bool remove_approval_add(int32_t approval) {
+      ScopedLock lock(m_mutex);
+      m_remove_approvals |= approval;
+      return m_remove_approvals == remove_approval_mask();
+    }
+    bool remove_ok() { ScopedLock lock(m_mutex); return m_remove_approvals == remove_approval_mask(); }
 
     void complete_error(int error, const String &msg);
     void complete_error_no_log(int error, const String &msg);
@@ -144,12 +150,17 @@ namespace Hypertable {
     bool is_blocked() { ScopedLock lock(m_mutex); return m_blocked; }
     bool is_complete() { ScopedLock lock(m_mutex); return m_state == OperationState::COMPLETE; }
 
+    int32_t get_original_type() { return m_original_type; }
+    void set_original_type(int32_t original_type) { m_original_type = original_type; }
+
   protected:
     Mutex m_mutex;
     ContextPtr m_context;
     EventPtr m_event;
     int32_t m_state;
     int32_t m_error;
+    int32_t m_remove_approvals;
+    int32_t m_original_type;
     bool m_blocked;
     String m_error_msg;
     HiResTime m_expiration_time;
